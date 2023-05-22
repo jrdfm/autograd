@@ -169,7 +169,7 @@ class ForwardGraphVisualizer:
         graph = Digraph(format='png', graph_attr={'rankdir': rankdir})
         for n in self.nodes:
             uid = str(id(n))
-            graph.node(name = uid , label = f'{n.label} : {n.data} | ∇ : {n.grad}| op : {n._op}', shape = 'record')
+            graph.node(name = uid , label = f'{n.label} : {n.data} | ∇ : {n.grad}', shape = 'record')
             if n._op:
                 graph.node(name = uid + n._op, label = n._op)
                 graph.attr('edge',color = 'red',arrowhead="vee")
