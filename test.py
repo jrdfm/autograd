@@ -169,14 +169,29 @@ class ForwardGraphVisualizer:
         graph = Digraph(format='png', graph_attr={'rankdir': rankdir})
         for n in self.nodes:
             uid = str(id(n))
-            graph.node(name = uid , label = f'{n.label} : {n.data} | ∇ : {n.grad}', shape = 'record')
+            # graph.node(name = uid , label = f'{n.label} : {n.data} | ∇ : {n.grad}', shape = 'record')
+            # graph.node(name = uid , label = f'<<table border="0" cellborder="0" cellspacing="0">\
+            #     							<tr><td bgcolor="yellow">{n.label}</td></tr>\
+       		# 								<tr><td bgcolor="lightblue"><font color="#0000ff">{n.data}</font></td></tr>\
+       		# 								<tr><td bgcolor="firebrick1">{n.grad}</td></tr>\
+     		# 								</table>>')
+            graph.node(name = uid , label =f'<<table border="1" cellborder="0" cellspacing="1"><tr><td BGCOLOR= "deepskyblue">{n.label}: {n.data}</td>\
+                							 </tr><tr><td BGCOLOR= "brown1">{n.grad}</td></tr></table>>', shape = 'plaintext')
             if n._op:
                 graph.node(name = uid + n._op, label = n._op)
-                graph.attr('edge',color = 'red',arrowhead="vee")
-                graph.edge(str(id(n)) + n._op, str(id(n)))
+                # graph.attr('edge',color = 'blue',arrowhead="vee")
+                graph.edge(str(id(n)) + n._op, str(id(n)), color = 'red',arrowhead="vee",dir="back")
+                graph.edge(str(id(n)) + n._op, str(id(n)),color = 'blue',arrowhead="vee")
+                
+                # graph.edge(str(id(n)), str(id(n)) + n._op, color = 'red',arrowhead="vee")
+                # graph.attr('edge',color = 'blue',arrowhead="vee",dir="back")
         for n1, n2 in self.edges:
             if n2._op:
-                graph.edge(str(id(n1)), str(id(n2)) + n2._op)
+                graph.edge(str(id(n1)), str(id(n2)) + n2._op, color = 'red',arrowhead="vee",dir="back")
+                graph.edge(str(id(n1)), str(id(n2)) + n2._op,color = 'blue',arrowhead="vee")
+                
+                # graph.attr('edge',color = 'blue',arrowhead="vee",dir="back")
+                # graph.edge(str(id(n2)) + n2._op,str(id(n1)), color = 'red',arrowhead="vee")
             else:
                 graph.edge(str(id(n1)), str(id(n2)))
         return graph
@@ -185,6 +200,8 @@ class ForwardGraphVisualizer:
         self._build_trace(root)
         graph = self._build_graph(rankdir=rankdir)
         return graph
+    
+    # f"<table><tr><td style="background-color: blue">{n.label}|{n.data}</td></tr><tr><td style="background-color: red">{n.grad}</td></tr></table>"
 
 if __name__ == '__main__':
 	# from platform import python_version
