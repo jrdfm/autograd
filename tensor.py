@@ -37,13 +37,16 @@ class Tensor:
 		self.label = label
   
 	def __repr__(self):
-		return f"Tensor({self.data})"
+		return f"Tensor({self.data}) grad = {self.grad}"
 
 	def __add__(self, other):
+		# print(f'__add__ self {self.shape} other {other.label} {other.shape} type {type(other)}')
+		# print(f'__add__ other {other}')
 		other = other if isinstance(other, Tensor) else Tensor(other)
 		out = Tensor(self.data + other.data, (self, other), '+')
 
 		def _backward():
+			# print(f'__add__ _backward self {self.grad} other {other.grad} ')
 			self.grad += unbroadcast(np.ones_like(self.data) * out.grad, self.data.shape) 
 			other.grad += unbroadcast(np.ones_like(other.data) * out.grad, other.data.shape)
 		out._backward = _backward
@@ -59,10 +62,26 @@ class Tensor:
 		out._backward = _backward
 		return out
 
-	def sum(self, axis = None):
-		out = Tensor(self.data.sum(axis=axis), (self,), 'sum')
+
+	def sum(self, axis=None, keepdims=False):
+		out = Tensor(self.data.sum(axis=axis, keepdims=keepdims), (self,), 'sum')
+		
 		def _backward():
-			self.grad += unbroadcast(np.ones_like(self.data) * out.grad, self.data.shape)
+			if axis is not None and not keepdims:
+				grad_out = np.expand_dims(out.grad, axis=axis)
+			else:
+				grad_out = out.grad.copy()
+			grad = np.ones_like(self.data) * grad_out
+			self.grad += grad
+
+		out._backward = _backward
+		return out
+
+	def __getitem__(self, idx):
+		out = Tensor(self.data[idx], (self,), 'getitem')
+
+		def _backward():
+			self.grad += unbroadcast(out.grad, self.data.shape)[idx]
 		out._backward = _backward
 		return out
 
@@ -130,6 +149,49 @@ class Tensor:
 		out._backward = _backward
 		return out
 
+	def T(self):
+		if not len(self.data.shape) == 2: raise Exception("Arg for Transpose must be 2D tensor: {}".format(self.data.shape))
+		out = Tensor(self.data.T, (self,), 'T')
+		def _backward():
+			self.grad += out.grad.T
+		out._backward = _backward
+		return out
+
+	def reshape(self, shape):
+		out = Tensor(self.data.reshape(shape), (self,), 'reshape')
+		def _backward():
+			self.grad += out.grad.reshape(out.shape)
+		out._backward = _backward
+		return out
+
+	def log(self):
+		out = Tensor(np.log(self.data), (self,), 'log')
+		def _backward():
+			self.grad += out.grad / self.data
+		out._backward = _backward
+		return out
+
+	def softmax(self):
+		out = Tensor(np.exp(self.data) / np.exp(self.data).sum(axis=-1, keepdims=True), (self,), 'soft_max')
+		# def _backward():
+		# 	self.grad += out.grad * out.data * (1 - out.data)
+		softmax = out.data
+		def _backward():
+			self.grad += (out.grad - np.reshape(np.sum(out.grad * softmax, 1),[-1, 1])) * softmax
+		out._backward = _backward
+		return out
+
+	def reduce_sum(self, axis=None):
+		out = Tensor(self.data.sum(axis=axis), (self,), 'reduce_sum')
+		def _backward():
+			
+			output_shape = np.array(self.data.shape)
+			output_shape[axis] = 1
+			tile_scaling = self.data.shape // output_shape
+			grad = np.reshape(out.grad, output_shape)
+			self.grad += np.tile(grad, tile_scaling)
+		out._backward = _backward
+		return out
 
 	def backward(self):
 		topo = []
@@ -146,7 +208,13 @@ class Tensor:
 		for node in reversed(topo):
 			node._backward()
 
-
+	@property
+	def shape(self):
+		"""Returns the shape of the data array in a tuple.
+		>>> a = Tensor(np.array([3,2])).shape
+		(2,)
+		"""
+		return self.data.shape
 
 
 class ForwardGraphVisualizer:
@@ -167,29 +235,18 @@ class ForwardGraphVisualizer:
         graph = Digraph(format='png', graph_attr={'rankdir': rankdir})
         for n in self.nodes:
             uid = str(id(n))
-            # graph.node(name = uid , label = f'{n.label} : {n.data} | ∇ : {n.grad}', shape = 'record')
-            # graph.node(name = uid , label = f'<<table border="0" cellborder="0" cellspacing="0">\
-            #     							<tr><td bgcolor="yellow">{n.label}</td></tr>\
-       		# 								<tr><td bgcolor="lightblue"><font color="#0000ff">{n.data}</font></td></tr>\
-       		# 								<tr><td bgcolor="firebrick1">{n.grad}</td></tr>\
-     		# 								</table>>')
-            graph.node(name = uid , label =f'<<table border="1" cellborder="0" cellspacing="1"><tr><td BGCOLOR= "deepskyblue">{n.label}: {n.data}</td>\
-                							 </tr><tr><td BGCOLOR= "brown1">{n.grad}</td></tr></table>>', shape = 'plaintext')
+            shape = n.grad.shape if isinstance(n.grad, Tensor) or isinstance(n.grad, np.ndarray) else n.grad
+            graph.node(name = uid , label =f'<<table border="1" cellborder="0" cellspacing="1"><tr><td BGCOLOR= "deepskyblue">{n.label}: {n.data.shape}</td>\
+                							 </tr><tr><td BGCOLOR= "brown1">{shape}</td></tr></table>>', shape = 'plaintext')
             if n._op:
                 graph.node(name = uid + n._op, label = n._op)
-                # graph.attr('edge',color = 'blue',arrowhead="vee")
                 graph.edge(str(id(n)) + n._op, str(id(n)), color = 'red',arrowhead="vee",dir="back")
                 graph.edge(str(id(n)) + n._op, str(id(n)),color = 'blue',arrowhead="vee")
-                
-                # graph.edge(str(id(n)), str(id(n)) + n._op, color = 'red',arrowhead="vee")
-                # graph.attr('edge',color = 'blue',arrowhead="vee",dir="back")
         for n1, n2 in self.edges:
             if n2._op:
                 graph.edge(str(id(n1)), str(id(n2)) + n2._op, color = 'red',arrowhead="vee",dir="back")
                 graph.edge(str(id(n1)), str(id(n2)) + n2._op,color = 'blue',arrowhead="vee")
-                
-                # graph.attr('edge',color = 'blue',arrowhead="vee",dir="back")
-                # graph.edge(str(id(n2)) + n2._op,str(id(n1)), color = 'red',arrowhead="vee")
+
             else:
                 graph.edge(str(id(n1)), str(id(n2)))
         return graph
@@ -199,40 +256,4 @@ class ForwardGraphVisualizer:
         graph = self._build_graph(rankdir=rankdir)
         return graph
     
-    # f"<table><tr><td style="background-color: blue">{n.label}|{n.data}</td></tr><tr><td style="background-color: red">{n.grad}</td></tr></table>"
 
-if __name__ == '__main__':
-	# from platform import python_version
-	# print(python_version())
-	# a = Tensor([1,1,1,1], label='a')
-	# b = Tensor([2], label='b')
-	# c = (a * b).sum()
-	# c = (a * b)
-	# c.label = 'c'
-	# print(c)
-	# d = c.sum()
-	# d.label = 'd'
-	# d.grad = 1.0
-	# d._backward()
-	# c._backward()
-	# a._backward()
-	# b._backward()
- 
-	a = Tensor([[1,2],[3,4],[5,6]], label='a')
-	b = Tensor([-1,1], label='b')
-	c = (a + b).sum()
-	c.label = 'c'
-	print(c)
-	# d = c.sum()
-	# print(f'd {d}')
-	# d.label = 'd'
-	# c.grad = 1.0
-	# d._backward()
-	c.backward()
-	# a._backward()
-	# b._backward()
-	print(f'a: {a.data} b: {b.data} c: {c.data}\na.grad:\n{a.grad}\nb.grad:\n{b.grad}\nc.grad:\n{c.grad}')
-	visualizer = ForwardGraphVisualizer()
-	rankdir = "LR"
-	dot = visualizer.visualize( c,rankdir=rankdir)
-	dot.render(filename=dot.name,view=True) 
