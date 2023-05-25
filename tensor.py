@@ -118,6 +118,11 @@ class Tensor:
 		out._backward = _backward
 		return out
 
+	def mean(self, axis=None, keepdims:bool=False):
+		out = self.sum(axis=axis)
+		coeff = np.prod(out.shape) / np.prod(self.shape)
+		return out * Tensor(coeff)
+    
 	def __getitem__(self, idx):
 		out = Tensor(self.data[idx], (self,), 'getitem')
 
@@ -127,7 +132,6 @@ class Tensor:
 		return out
 
 	def __pow__(self, other):
-		print(f'pow : self {self} other {other}')
 		other = other if isinstance(other, Tensor) else Tensor(other)
 		out = Tensor(self.data ** other.data, (self, other), '**')
 

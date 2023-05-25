@@ -8,7 +8,7 @@ Inspired by Karphaty's [micrograd](https://github.com/karpathy/micrograd)
 
 - PyTorch-like backpropagation, reverse autodifferentiation,  on dynamically built computational graph, DAG.
 - Activations: ReLU, Sigmoid, tanh
-- Loss: CrossEntropyLoss
+- Loss: CrossEntropyLoss, Mean squared error
 - Layers: Linear, Sequential
 - Optimizers: SGD
 - Computational graph visualizer 
@@ -17,7 +17,6 @@ Inspired by Karphaty's [micrograd](https://github.com/karpathy/micrograd)
 # Todo
 - Layers: BatchNorm1d, BatchNorm2d, Flatten, Dropout
 - Convolutions: Conv1d, Conv2d, MaxPool2d, AvgPool2d
-- Loss: CrossEntropyLoss
 - Weight initialization: Glorot uniform, Glorot normal, Kaiming uniform, Kaiming normal
 - Activations: Swish, ELU, LeakyReLU
 - Optimizers: AdamW, Adam

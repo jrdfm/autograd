@@ -206,6 +206,31 @@ class CrossEntropyLoss(Module):
         # Simply calls nn.functional.cross_entropy
         # If you implement your own Function subclass you may need to modify this"""
         return cross_entropy(predicted, target)
+class MSELoss(Module):
+    """The MSELoss function.
+       Mean squared error function is used for regression problems.
+
+        >>> criterion =  MSELoss()
+        >>> criterion(outputs, labels)
+        3.241
+
+        Inherits from:
+            Module (nn.module.Module)
+    """
+    def __init__(self) -> None:
+        pass
+
+    def forward(self, predicted, target):
+        """Forward pass
+        
+        Args:
+            predicted (Tensor): (batch_size, num_classes)
+            target (Tensor): (batch_size,)
+        Returns:
+            Tensor: loss, stored as a float in a tensor
+        """
+        return ((predicted - target) ** 2).mean()
+    
     
 class Optimizer():
     """Base class for optimizers. Shouldn't need to modify."""
