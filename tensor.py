@@ -5,17 +5,6 @@ import numpy as np
 from graphviz import Digraph
 
 
-def unbroadcast(grad: np.ndarray, shape: tuple, to_keep: int = 0) -> np.ndarray:
-    if grad.shape == shape: return grad
-    diff_dims = len(shape) - len(grad.shape)
-    print(f'diff_dims {diff_dims} shape {shape} grad.shape {grad.shape}')
-    if diff_dims > 0: grad = grad.sum(axis=0)
-    for i in range(diff_dims, len(shape) - to_keep):
-        print(f'i {i} grad.shape[{i}] {grad.shape[i]} shape[{i}] {shape[i]}')
-        if grad.shape[i] != shape[i]:
-            grad = grad.sum(axis=i, keepdims=True)
-            print(f'grad {grad}\n')
-    return grad
 
 def unbroadcast(grad:np.ndarray, shape:tuple, to_keep:int=0) -> np.ndarray:
     while len(grad.shape) != len(shape):
@@ -216,6 +205,8 @@ class Tensor:
 		"""
 		return self.data.shape
 
+	def visualize(root, rankdir="LR"):
+		return ForwardGraphVisualizer().visualize(root,rankdir="LR")
 
 class ForwardGraphVisualizer:
     def __init__(self):
@@ -235,9 +226,10 @@ class ForwardGraphVisualizer:
         graph = Digraph(format='png', graph_attr={'rankdir': rankdir})
         for n in self.nodes:
             uid = str(id(n))
-            shape = n.grad.shape if isinstance(n.grad, Tensor) or isinstance(n.grad, np.ndarray) else n.grad
-            graph.node(name = uid , label =f'<<table border="1" cellborder="0" cellspacing="1"><tr><td BGCOLOR= "deepskyblue">{n.label}: {n.data.shape}</td>\
-                							 </tr><tr><td BGCOLOR= "brown1">{shape}</td></tr></table>>', shape = 'plaintext')
+            dshape = n.shape if (isinstance(n, Tensor) or isinstance(n, np.ndarray)) and  (len(n.shape) != 0) else n
+            gshape = n.grad.shape if isinstance(n.grad, Tensor) or isinstance(n.grad, np.ndarray) else n.grad
+            graph.node(name = uid , label =f'<<table border="1" cellborder="0" cellspacing="1"><tr><td BGCOLOR= "deepskyblue">{n.label}: {dshape}</td>\
+                							 </tr><tr><td BGCOLOR= "brown1">{gshape}</td></tr></table>>', shape = 'plaintext')
             if n._op:
                 graph.node(name = uid + n._op, label = n._op)
                 graph.edge(str(id(n)) + n._op, str(id(n)), color = 'red',arrowhead="vee",dir="back")

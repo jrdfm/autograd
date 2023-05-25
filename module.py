@@ -93,17 +93,17 @@ class Linear(Module):
 
 		self.in_features = in_features
 		self.out_features = out_features
+		# Randomly initializing layer weights
 		k = 1 / in_features
 		self.weight = Tensor(k * (np.random.rand(out_features, in_features) - 0.5),label="linear_weight")
 		self.bias = Tensor(k * (np.random.rand(out_features) - 0.5),label = "linear_bias")
-		# Randomly initializing layer weights
-
+		
   
 	def __repr__(self):
 		return f"Linear({self.in_features}, {self.out_features})"
 
-	def parameters(self):
-		return [self.weight, self.bias]
+	# def parameters_(self):
+	# 	return [self.weight, self.bias]
 
 	def forward(self, x):
 		"""
@@ -112,15 +112,10 @@ class Linear(Module):
 		Returns:
 			Tensor: (batch_size, out_features)
 		"""
-		# check that the input is a tensor
-				# if not type(x).__name__ == 'Tensor':
-				# raise Exception("Only dropout for tensors is supported")
 		if not (type(x).__name__ == 'Tensor' or type(self.weight).__name__ == 'Tensor'):
 			raise Exception(f"X must be Tensor. Got {type(x)}")
-		# self.bias.grad = 0.0
 
 		output = x @ self.weight.T() + self.bias
-		# print(f"linear output {output.shape} argmax {np.argmax(output.data,axis = 1)}")
 		return output
 
 
@@ -141,8 +136,9 @@ class Sequential(Module):
 		self.layers = layers
 		self.children = self._parameters
 		# iterate through args provided and store them
-		# for idx, l in enumerate(self.layers):
-		#     self.add_module(str(idx), l)
+		for idx, l in enumerate(self.layers):
+			self.add_module(str(idx), l)
+      
 	def __repr__(self):
 		return f"Sequential({', '.join([str(l) for l in self.layers])})"
 
@@ -154,8 +150,8 @@ class Sequential(Module):
 		"""Enables list-like indexing for layers"""
 		return self.layers[idx]
 
-	def parameters(self):
-		return [p for layer in self.layers for p in layer.parameters()]
+	# def parameters_(self):
+	# 	return [p for layer in self.layers for p in layer.parameters()]
 
 	def forward(self, x):
 		"""Passes input data through each layer in order
@@ -225,45 +221,7 @@ class SGD(Optimizer):
 
 	def step(self):
 		"""Updates params based on gradients stored in param tensors"""
-		# for i, p in enumerate(self.params):
-		# 	# print(f'in step i {i} shape : {p.shape} label : {p.label}')
-		# 	# print(f'{np.isnan(p.grad).any()}')
-		# 	m = self.momentums
-		# 	# print(f'm shape {len(m)}')
-		# 	# print(f'type mom {type(self.momentum)} m[i] {type(m[i])} self.lr {type(self.lr)} p.grad {type(p.grad)} p.grad.data {type(p.grad.data)}')
-		# 	m[i] = (self.momentum * m[i]) - (self.lr * p.grad)
-		# 	p.data = p.data + m[i]
-		# 	# print(f'*{np.isnan(p.grad).any()}')
 		for i, p in enumerate(self.params):
-			# print(f'in step i {i} shape : {p.shape} label : {p.label}')
-			# print(f'{np.isnan(p.grad).any()}')
 			m = self.momentums
-			# # print(f'm shape {len(m)}')
-			# # print(f'type mom {type(self.momentum)} m[i] {type(m[i])} self.lr {type(self.lr)} p.grad {type(p.grad)} p.grad.data {type(p.grad.data)}')
 			m[i] = (self.momentum * m[i]) - (self.lr * p.grad)
 			p.data = p.data + m[i]
-			# p.data = p.data - (self.lr * p.grad)
-
-if __name__ == "__main__":
-	# from keras.datasets import mnist
-	# import keras
-	# import numpy as np
- 
-	# (x_train,y_train),(x_test,y_test) = mnist.load_data()
-	# train_images = np.asarray(x_train, dtype=np.float32) / 255.0
-	# test_images = np.asarray(x_test, dtype=np.float32) / 255.0
-	# train_images = train_images.reshape(60000,784)
-	# test_images = test_images.reshape(10000,784)
-	# y_train = keras.utils.to_categorical(y_train)
- 
- 
-	model = Sequential(Linear(784, 20),ReLU(),Linear(20,10))
- 
-	# batch_size = 32
-	# ri = np.random.permutation(train_images.shape[0])[:batch_size]
-	# Xb, yb = Tensor(train_images[ri]), Tensor(y_train[ri])
-	# print(f'Xb {Xb.data.shape} yb {yb.data.shape}')
-	Xb = Tensor(np.random.rand(32, 784) )
-	y_predW = model(Xb)
- 
-	print(f'y_predW {y_predW.data.shape}')
