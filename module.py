@@ -182,6 +182,31 @@ class Sigmoid(Module):
 	def forward(self, x):
 		return x.sigmoid()
     
+class CrossEntropyLoss(Module):
+    """The XELoss function.
+    This class is for human use; just calls function in nn.functional.
+    Does not need args to initialize.
+
+    >>> criterion = CrossEntropyLoss()
+    >>> criterion(outputs, labels)
+    3.241
+    """
+    def __init__(self):
+        pass
+
+    def forward(self, predicted, target):
+        """
+        Args:
+            predicted (Tensor): (batch_size, num_classes)
+            target (Tensor): (batch_size,)
+
+        Returns:
+            Tensor: loss, stored as a float in a tensor
+        """
+        # Simply calls nn.functional.cross_entropy
+        # If you implement your own Function subclass you may need to modify this"""
+        return cross_entropy(predicted, target)
+    
 class Optimizer():
     """Base class for optimizers. Shouldn't need to modify."""
     def __init__(self, params):

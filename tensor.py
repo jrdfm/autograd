@@ -5,7 +5,6 @@ import numpy as np
 from graphviz import Digraph
 
 
-
 def unbroadcast(grad:np.ndarray, shape:tuple, to_keep:int=0) -> np.ndarray:
     while len(grad.shape) != len(shape):
         grad = grad.sum(axis=0)
@@ -14,6 +13,62 @@ def unbroadcast(grad:np.ndarray, shape:tuple, to_keep:int=0) -> np.ndarray:
             grad = grad.sum(axis=i, keepdims=True)
     return grad
 
+def to_one_hot(arr, num_classes):
+	"""(Freebie) Converts a tensor of classes to one-hot, useful in XELoss
+
+	Example:
+	>>> to_one_hot(tensor.Tensor(np.array([1, 2, 0, 0])), 3)
+	[[0, 1, 0],
+	[0, 0, 1],
+	[1, 0, 0],
+	[1, 0, 0]]
+
+	Args:
+		arr (Tensor): Condensed tensor of label indices
+		num_classes (int): Number of possible classes in dataset
+						For instance, MNIST would have `num_classes==10`
+	Returns:
+		Tensor: one-hot tensor
+	"""
+	arr = arr.data.astype(int)
+	a = np.zeros((arr.shape[0], num_classes))
+	a[np.arange(len(a)), arr] = 1
+	return Tensor(a, True)
+
+def cross_entropy(predicted, target, onehot = False):
+	"""Calculates Cross Entropy Loss (XELoss) between logits and true labels.
+	For MNIST, don't call this function directly; use nn.loss.CrossEntropyLoss instead.
+
+	Args:
+		predicted (Tensor): (batch_size, num_classes) logits
+		target (Tensor): (batch_size,) true labels
+
+	Returns:
+		Tensor: the loss as a float, in a tensor of shape ()
+	"""
+	batch_size, num_classes = predicted.shape
+
+	# Tip: You can implement XELoss all here, without creating a new subclass of Function.
+	#      However, if you'd prefer to implement a Function subclass you're free to.
+	#      Just be sure that nn.loss.CrossEntropyLoss calls it properly.
+
+	# Tip 2: Remember to divide the loss by batch_size; this is equivalent
+	#        to reduction='mean' in PyTorch's nn.CrossEntropyLoss
+	# see https://stackoverflow.com/questions/44081007/logsoftmax-stability
+	x = predicted
+	if onehot:
+		y = to_one_hot(target,num_classes) 
+	else: y = target
+
+	max = Tensor(np.max(x.data,axis=1)) #batchsize x 1
+	C = (x.T() - max)
+	LSM = (C - C.T().exp().sum(axis=1).log()).T()
+	# print(f'LSM shape: {LSM.shape} {(LSM*y).sum()} ')
+	# print(f'Tensor(batch_size) {Tensor(batch_size)}')
+	Loss = -(LSM*y).sum() / batch_size
+	# Loss = -(LSM*y).sum() 
+
+	return Loss
 class Tensor:
 	def __init__(self, data, _children=(), _op='', label=''):
 		if isinstance(data, np.ndarray): self.data = data
@@ -29,13 +84,10 @@ class Tensor:
 		return f"Tensor({self.data}) grad = {self.grad}"
 
 	def __add__(self, other):
-		# print(f'__add__ self {self.shape} other {other.label} {other.shape} type {type(other)}')
-		# print(f'__add__ other {other}')
 		other = other if isinstance(other, Tensor) else Tensor(other)
 		out = Tensor(self.data + other.data, (self, other), '+')
 
 		def _backward():
-			# print(f'__add__ _backward self {self.grad} other {other.grad} ')
 			self.grad += unbroadcast(np.ones_like(self.data) * out.grad, self.data.shape) 
 			other.grad += unbroadcast(np.ones_like(other.data) * out.grad, other.data.shape)
 		out._backward = _backward
@@ -75,6 +127,7 @@ class Tensor:
 		return out
 
 	def __pow__(self, other):
+		print(f'pow : self {self} other {other}')
 		other = other if isinstance(other, Tensor) else Tensor(other)
 		out = Tensor(self.data ** other.data, (self, other), '**')
 
@@ -170,18 +223,6 @@ class Tensor:
 		out._backward = _backward
 		return out
 
-	def reduce_sum(self, axis=None):
-		out = Tensor(self.data.sum(axis=axis), (self,), 'reduce_sum')
-		def _backward():
-			
-			output_shape = np.array(self.data.shape)
-			output_shape[axis] = 1
-			tile_scaling = self.data.shape // output_shape
-			grad = np.reshape(out.grad, output_shape)
-			self.grad += np.tile(grad, tile_scaling)
-		out._backward = _backward
-		return out
-
 	def backward(self):
 		topo = []
 		visited = set()
@@ -208,6 +249,8 @@ class Tensor:
 	def visualize(root, rankdir="LR"):
 		return ForwardGraphVisualizer().visualize(root,rankdir="LR")
 
+
+ 
 class ForwardGraphVisualizer:
     def __init__(self):
         self.nodes, self.edges = set(), set()
